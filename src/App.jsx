@@ -18,7 +18,7 @@ function App() {
   useEffect(() => {
     const mqttClient = new Paho.Client(
       "broker.hivemq.com",
-      1883,
+      8884, // porta WebSocket
       "react_client_" + Math.floor(Math.random() * 1000)
     );
 
@@ -27,7 +27,7 @@ function App() {
       setIsConnected(false);
     };
 
-    mqttClient.onMessageArrived = (message) => {
+    (mqttClient.onMessageArrived = (message) => {
       console.log(
         "Mensagem recebida:",
         message.destinationName,
@@ -59,7 +59,7 @@ function App() {
         default:
           break;
       }
-    };
+    });
 
     mqttClient.connect({
       onSuccess: () => {
