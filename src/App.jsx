@@ -27,7 +27,7 @@ function App() {
       setIsConnected(false);
     };
 
-    (mqttClient.onMessageArrived = (message) => {
+    mqttClient.onMessageArrived = (message) => {
       console.log(
         "Mensagem recebida:",
         message.destinationName,
@@ -56,10 +56,19 @@ function App() {
         case "iot/bedroom/outlet":
           setOutlet(message.payloadString === "ON");
           break;
+        case "iot/garage/gateSocial":
+          // Aqui entra o filtro
+          if (
+            (message.payloadString === "OPEN" && !garageLight) ||
+            (message.payloadString === "CLOSE" && garageLight)
+          ) {
+            setGarageLight(message.payloadString === "OPEN");
+          }
+          break;
         default:
           break;
       }
-    });
+    };
 
     mqttClient.connect({
       onSuccess: () => {
