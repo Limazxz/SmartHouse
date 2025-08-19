@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import * as Paho from "paho-mqtt";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css"; // Import Bootstrap icons
 
 function App() {
   const [client, setClient] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [theme, setTheme] = useState("light"); // State for theme switching
 
   const [garageLight, setGarageLight] = useState(false);
   const [roomLight, setRoomLight] = useState(false);
@@ -14,11 +16,19 @@ function App() {
   const [bedroomLight, setBedroomLight] = useState(false);
   const [curtain, setCurtain] = useState(false);
   const [outlet, setOutlet] = useState(false);
+  const [basculanteGateOpen, setBasculanteGateOpen] = useState(false); // State for basculante gate
+
+  // Aplica/remover classes no body para mudar o tema da página inteira
+  useEffect(() => {
+    const cls = `theme-${theme}`;
+    document.body.classList.remove("theme-light", "theme-dark");
+    document.body.classList.add(cls);
+  }, [theme]);
 
   useEffect(() => {
     const mqttClient = new Paho.Client(
       "broker.hivemq.com",
-      8884, // porta WebSocket
+      8884, // WebSocket port
       "react_client_" + Math.floor(Math.random() * 1000)
     );
 
@@ -28,41 +38,48 @@ function App() {
     };
 
     mqttClient.onMessageArrived = (message) => {
-      console.log(
-        "Mensagem recebida:",
-        message.destinationName,
-        message.payloadString
-      );
+      const payload = (message.payloadString || "").trim();
+      console.log("Mensagem recebida:", message.destinationName, payload);
 
       switch (message.destinationName) {
         case "iot/garage/light":
-          setGarageLight(message.payloadString === "ON");
+          setGarageLight(payload.toUpperCase() === "ON");
           break;
         case "iot/room/light":
-          setRoomLight(message.payloadString === "ON");
+          setRoomLight(payload.toUpperCase() === "ON");
           break;
         case "iot/room/ac":
-          setAC(message.payloadString === "ON");
+          setAC(payload.toUpperCase() === "ON");
           break;
         case "iot/room/humidifier":
-          setHumidifier(message.payloadString === "ON");
+          setHumidifier(payload.toUpperCase() === "ON");
           break;
         case "iot/bedroom/light":
-          setBedroomLight(message.payloadString === "ON");
+          setBedroomLight(payload.toUpperCase() === "ON");
           break;
         case "iot/bedroom/curtain":
-          setCurtain(message.payloadString === "OPEN");
+          setCurtain(
+            payload.toUpperCase() === "OPEN" || payload.toUpperCase() === "ON"
+          );
           break;
         case "iot/bedroom/outlet":
-          setOutlet(message.payloadString === "ON");
+          setOutlet(payload.toUpperCase() === "ON");
           break;
         case "iot/garage/gateSocial":
           // Aqui entra o filtro
           if (
-            (message.payloadString === "OPEN" && !garageLight) ||
-            (message.payloadString === "CLOSE" && garageLight)
+            (payload === "OPEN" && !garageLight) ||
+            (payload === "CLOSE" && garageLight)
           ) {
-            setGarageLight(message.payloadString === "OPEN");
+            setGarageLight(payload === "OPEN");
+          }
+          break;
+        case "iot/garage/gateBasculante":
+          if (
+            (payload === "OPEN" && !basculanteGateOpen) ||
+            (payload === "CLOSE" && basculanteGateOpen)
+          ) {
+            setBasculanteGateOpen(payload === "OPEN");
           }
           break;
         default:
@@ -98,6 +115,10 @@ function App() {
     client.send(msg);
   };
 
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
+
   const renderButton = (label, active, topic, onMsg) => (
     <button
       className={`btn ${active ? "btn-success" : "btn-secondary"} mb-2 w-100`}
@@ -108,8 +129,17 @@ function App() {
   );
 
   return (
-    <div className="container mt-4">
-      <h1 className="mb-3">🏠 Dashboard Casa IoT</h1>
+    <div className={`container mt-4`}>
+      <header className="d-flex justify-content-between align-items-center mb-3">
+        <h1>🏠 Dashboard Casa IoT</h1>
+        <button
+          className="btn btn-outline-secondary"
+          onClick={toggleTheme}
+          title="Trocar tema"
+        >
+          <i className={`bi bi-${theme === "light" ? "moon" : "sun"}`}></i>
+        </button>
+      </header>
       <p>Conectado ao broker: {isConnected ? "✅ Sim" : "❌ Não"}</p>
 
       <div className="row">
@@ -137,13 +167,13 @@ function App() {
             )}
             {renderButton(
               "Abrir Portão Basculante",
-              false,
+              basculanteGateOpen,
               "iot/garage/gateBasculante",
               "OPEN"
             )}
             {renderButton(
               "Fechar Portão Basculante",
-              false,
+              !basculanteGateOpen,
               "iot/garage/gateBasculante",
               "CLOSE"
             )}
